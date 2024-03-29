@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test-task</title>
+
+    <style>
+        html, body {
+            padding: 0; 
+            margin: 0;
+        }
+
+        .wrapper {
+            width: 100vw;
+            height: 100vh;
+            
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            width: 100vw;
+            height: 100vh;
+
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 5;
+            
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal--visible {
+            display: flex;
+        }
+        
+        .modal::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            z-index: -1;
+            opacity: .3;
+        }
+
+        .modal__content {
+            box-sizing: border-box;
+            padding: 40px;
+
+            width: 90%;
+            max-width: 100%;
+
+            background-color: white;
+            border-radius: 30px;
+
+            display: flex;
+            flex-wrap: wrap;
+            column-gap: 10px;
+            row-gap: 10px;
+        }
+
+        .modal__content .form__input {
+            width: calc(50% - 13px);
+
+            @media screen and (max-width: 500px) {
+                width: 100%;
+            }
+        }
+
+        .form-data {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 300px;
+            background-color: rgba(236, 236, 236, .4);
+            height: 100vh;
+
+            overflow-y: scroll;
+
+            @media screen and (max-width: 1000px) {
+                height: unset;
+                height: 300px;
+                top: unset;
+                bottom: 0;
+                width: 100%;
+            }
+
+        }
+
+        .form-data__list {
+            overflow: auto;
+            padding-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script>
+        // функция создания элемента
+        // принимает tagName - название тега html, className - класс (селектор), parent - элемент 
+        // родителя или его селектор, children - innerText, attributes - объект атрибутов.
+        function createElement(tagName, className, parent, children=null, attributes={}) {
+                const element = document.createElement(tagName);
+                element.classList.add(className);
+                if (children) {
+                    element.innerText = children;
+                }
+
+                // добавление атрибрутов
+                if (Object.keys(attributes)?.length) {
+                    for ([key, value] of Object.entries(attributes)) {
+                        element.setAttribute(key, value);
+                    }
+                }
+                
+                // если parent строка - ищем элемент по селектору
+                if (typeof parent === 'string') {
+                    const parentElement = document.querySelector(`.${parent}`);
+                    parentElement.appendChild(element);
+                } else {
+                    parent.appendChild(element);
+                }
+                return element;
+        }
+
+        const rootElement = document.querySelector('#root');
+
+        if (rootElement) {
+
+            // до использования объекта использовал вызов createElement каждый раз
+            // в итоге принял решение, что такой вариант будет более лаконичным. 
+            // ключ - название элемента, так как далее ключ может быть использован как переменная,
+            // то и нейминг соответсвующий
+
+            const elementAttributes = {
+                wrapper: ['div', 'wrapper', rootElement],
+                button: ['button', 'button-modal', 'wrapper', 'Начать'],
+                modalWrapper: ['div', 'modal', document.body],
+                modalElement: ['form', 'modal__content', 'modal'],
+                inputFirst: ['input', 'form__input', 'modal__content', '', {
+                    type: 'text', placeholder: 'Имя', required: true, name: 'firstName'
+                }],
+                inputLast: ['input', 'form__input', 'modal__content', '', {
+                    type: 'text', placeholder: 'Фамилия', required: true, name: 'lastName'
+                }],
+                inputPhone: [
+                'input', 'form__input', 'modal__content', '', {
+                    type: 'tel', placeholder: 'Телефон: 777-777-7777', pattern: '[0-9]{3}-[0-9]{3}-[0-9]{4}', required: true, name: 'phone'
+                }],
+                inputEmail: [
+                'input', 'form__input', 'modal__content', '', {
+                    type: 'email', placeholder: 'Почта: something@mail.ru', required: true, name: 'email'
+                }],
+                formButton: ['input', 'form__button', 'modal__content', '', {type: 'submit', value: 'Отправить'}],
+                formDataElement: ['div', 'form-data', document.body],
+                formDataList: ['ol', 'form-data__list', 'form-data'],
+            };
+
+            // используя объект выше создаю подобный объект, но тут значение - созданный элемент
+            const elements = Object.entries(elementAttributes).reduce((acc, [name, attributes]) => {
+                let newAcc = {...acc};
+                newAcc[name] = createElement(...attributes);
+                return newAcc;
+            }, {});
+            
+            // инициализация нужных элементов
+            const {modalElement, modalWrapper, button, formDataList} = elements;
+            
+            // логика обработки формы, валидация предусмотрена на уровне html с помощью аттрибутов
+            modalElement.addEventListener('submit', (e) => {
+                // убираю дефолтное поведение формы (обновление страницы)
+                e.preventDefault();
+                const formObject = {};
+                const form = e.currentTarget;
+
+                // принимаю значения формы и сохраняю в объект
+                for (const [key, value] of new FormData(form)) {
+                    formObject[key] = value;
+                }
+
+                // после отправки формы поля ввода очищаются 
+                modalElement.reset();
+
+                // скрытые модального окна
+                modalWrapper.classList.remove('modal--visible');
+
+                // запись данных ввиде json
+                createElement('li', 'form-data__item', formDataList, JSON.stringify(formObject).replace(',', ', '));
+            });
+
+
+            // оба слушателя показывают/скрывают модальное окно
+            modalWrapper.addEventListener('click', (e) => {
+                if (e.target.closest('.modal')) {
+                    // реализация с классами даст больше возможностей, если в будущем понадобиться добавить анимацию
+                    e.target.classList.remove('modal--visible');
+                }
+            });
+
+            button.addEventListener('click', (e) => {
+                modalWrapper.classList.add('modal--visible');
+            });
+        }
+    </script>
+</body>
+</html>
